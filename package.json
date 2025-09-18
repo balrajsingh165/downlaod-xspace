@@ -13,7 +13,8 @@
     "fix-deps": "node fix-deps.js",
     "clean-test": "node clean-and-test.js",
     "test-python": "python test-downloader.py",
-    "test-json": "python test-python-json.py"
+    "test-json": "python test-python-json.py",
+    "cleanup": "node cleanup-downloads.js"
   },
   "dependencies": {
     "next": "^14.0.0",

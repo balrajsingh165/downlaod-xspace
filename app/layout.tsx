@@ -9,8 +9,6 @@ export const metadata: Metadata = {
     description: 'Download any Twitter Space as high-quality MP3 files instantly. Preserve conversations, interviews, and discussions forever. Free and easy to use.',
     keywords: 'twitter spaces, download, mp3, audio, podcast, conversation, interview',
     authors: [{ name: 'Twitter Space Downloader' }],
-    viewport: 'width=device-width, initial-scale=1',
-    themeColor: '#6366f1',
     openGraph: {
         title: 'Twitter Space Downloader',
         description: 'Download any Twitter Space as high-quality MP3 files instantly',
@@ -22,6 +20,12 @@ export const metadata: Metadata = {
         title: 'Twitter Space Downloader',
         description: 'Download any Twitter Space as high-quality MP3 files instantly',
     },
+}
+
+export const viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    themeColor: '#6366f1',
 }
 
 export default function RootLayout({

@@ -19,9 +19,9 @@ function cleanupOldFiles(downloadsDir: string) {
             })
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-        // Keep only the first 5 (newest) files, delete the rest
+        // Always keep only 5 files - delete all files beyond the 5 newest
         if (files.length > 5) {
-            const filesToDelete = files.slice(5)
+            const filesToDelete = files.slice(5) // Get all files after the 5th newest
             filesToDelete.forEach(file => {
                 try {
                     fs.unlinkSync(file.path)
@@ -30,6 +30,9 @@ function cleanupOldFiles(downloadsDir: string) {
                     console.error(`Failed to delete file ${file.name}:`, error)
                 }
             })
+            console.log(`Cleanup complete: Kept ${files.length - filesToDelete.length} files, deleted ${filesToDelete.length} old files`)
+        } else {
+            console.log(`No cleanup needed: Only ${files.length} files present (max 5 allowed)`)
         }
     } catch (error) {
         console.error('Error cleaning up old files:', error)
@@ -154,6 +157,9 @@ export async function GET() {
         if (!fs.existsSync(downloadsDir)) {
             return NextResponse.json({ files: [] })
         }
+
+        // Always cleanup old files first to ensure we only have 5
+        cleanupOldFiles(downloadsDir)
 
         const files = fs.readdirSync(downloadsDir)
             .filter(file => file.endsWith('.mp3'))
