@@ -1,0 +1,124 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { spawn } from 'child_process'
+import path from 'path'
+import fs from 'fs'
+
+export async function POST(request: NextRequest) {
+    try {
+        const { url } = await request.json()
+
+        if (!url) {
+            return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+        }
+
+        // Validate URL format
+        const twitterSpacePattern = /^https?:\/\/(twitter\.com|x\.com)\/i\/spaces\/\w+/
+        if (!twitterSpacePattern.test(url)) {
+            return NextResponse.json({ error: 'Invalid Twitter Spaces URL' }, { status: 400 })
+        }
+
+        // Create downloads directory
+        const downloadsDir = path.join(process.cwd(), 'downloads')
+        if (!fs.existsSync(downloadsDir)) {
+            fs.mkdirSync(downloadsDir, { recursive: true })
+        }
+
+        // Run the Python downloader script
+        const pythonScript = path.join(process.cwd(), 'scripts', 'downloader.py')
+
+        return new Promise((resolve) => {
+            const python = spawn('python', [pythonScript, url], {
+                cwd: process.cwd(),
+                stdio: ['pipe', 'pipe', 'pipe']
+            })
+
+            let stdout = ''
+            let stderr = ''
+
+            python.stdout.on('data', (data) => {
+                stdout += data.toString()
+            })
+
+            python.stderr.on('data', (data) => {
+                stderr += data.toString()
+            })
+
+            python.on('close', (code) => {
+                try {
+                    const result = JSON.parse(stdout)
+
+                    if (result.success) {
+                        // Move file to public directory for serving
+                        const publicDir = path.join(process.cwd(), 'public', 'downloads')
+                        if (!fs.existsSync(publicDir)) {
+                            fs.mkdirSync(publicDir, { recursive: true })
+                        }
+
+                        const sourceFile = result.file_path
+                        const fileName = result.file_name
+                        const destFile = path.join(publicDir, fileName)
+
+                        if (fs.existsSync(sourceFile)) {
+                            fs.copyFileSync(sourceFile, destFile)
+                            // Clean up original file
+                            fs.unlinkSync(sourceFile)
+
+                            result.download_url = `/downloads/${fileName}`
+                            delete result.file_path
+                        }
+                    }
+
+                    resolve(NextResponse.json(result))
+                } catch (error) {
+                    resolve(NextResponse.json({
+                        error: 'Failed to parse download result',
+                        details: stderr || stdout
+                    }, { status: 500 }))
+                }
+            })
+
+            python.on('error', (error) => {
+                resolve(NextResponse.json({
+                    error: 'Failed to start download process',
+                    details: error.message
+                }, { status: 500 }))
+            })
+        })
+
+    } catch (error) {
+        return NextResponse.json({
+            error: 'Internal server error',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 })
+    }
+}
+
+export async function GET() {
+    try {
+        const downloadsDir = path.join(process.cwd(), 'public', 'downloads')
+
+        if (!fs.existsSync(downloadsDir)) {
+            return NextResponse.json({ files: [] })
+        }
+
+        const files = fs.readdirSync(downloadsDir)
+            .filter(file => file.endsWith('.mp3'))
+            .map(file => {
+                const filePath = path.join(downloadsDir, file)
+                const stats = fs.statSync(filePath)
+                return {
+                    name: file,
+                    size: stats.size,
+                    download_url: `/downloads/${file}`,
+                    created_at: stats.birthtime
+                }
+            })
+
+        return NextResponse.json({ files })
+    } catch (error) {
+        return NextResponse.json({
+            error: 'Failed to list downloads',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 })
+    }
+}
