@@ -86,9 +86,8 @@ def download_space(url, output_dir="downloads"):
     safe_uploader = sanitize_filename(uploader)
     filename = f"{safe_uploader} - {safe_title}.%(ext)s"
 
-    # Download command
+    # Download command - simplified like main.py
     yt_dlp_path = os.environ.get("YT_DLP_PATH", "yt-dlp")
-    ffmpeg_path = os.environ.get("FFMPEG_PATH", "ffmpeg")
 
     cmd = [
         yt_dlp_path,
@@ -97,8 +96,6 @@ def download_space(url, output_dir="downloads"):
         "mp3",
         "--audio-quality",
         "0",  # Best quality
-        "--ffmpeg-location",
-        ffmpeg_path,
         "--output",
         os.path.join(output_dir, filename),
         "--no-warnings",
@@ -106,9 +103,8 @@ def download_space(url, output_dir="downloads"):
     ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=3600
-        )  # 1 hour timeout
+        # Use the same approach as main.py - no capture_output for better compatibility
+        result = subprocess.run(cmd, timeout=3600)  # 1 hour timeout
 
         if result.returncode == 0:
             # Find the downloaded file
@@ -129,7 +125,7 @@ def download_space(url, output_dir="downloads"):
             else:
                 return {"error": "Download completed but no MP3 file found"}
         else:
-            return {"error": f"Download failed: {result.stderr}"}
+            return {"error": f"Download failed with return code: {result.returncode}"}
 
     except subprocess.TimeoutExpired:
         return {"error": "Download timeout (max 1 hour)"}

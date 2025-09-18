@@ -11,7 +11,8 @@
     "check-deps": "node depend.js",
     "install-deps": "node depend.js",
     "fix-deps": "node fix-deps.js",
-    "clean-test": "node clean-and-test.js"
+    "clean-test": "node clean-and-test.js",
+    "test-python": "python test-downloader.py"
   },
   "dependencies": {
     "next": "^14.0.0",
