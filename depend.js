@@ -8,8 +8,32 @@ const { createWriteStream } = require('fs');
 
 const DEPENDENCIES = {
     'yt-dlp': {
-        url: 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp',
-        filename: 'yt-dlp',
+        getUrl: () => {
+            const arch = process.arch;
+            const platform = process.platform;
+
+            // Map Node.js arch to yt-dlp arch
+            const archMap = {
+                'x64': 'x86_64',
+                'arm64': 'aarch64',
+                'arm': 'armv7l',
+                'ia32': 'i686'
+            };
+
+            const ytDlpArch = archMap[arch] || 'x86_64';
+
+            if (platform === 'linux') {
+                return `https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_${ytDlpArch}`;
+            } else if (platform === 'darwin') {
+                return `https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos`;
+            } else if (platform === 'win32') {
+                return `https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe`;
+            }
+
+            // Fallback to generic binary
+            return 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+        },
+        filename: process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp',
         executable: true
     },
     'ffmpeg': {
@@ -52,11 +76,20 @@ class DependencyManager {
         if (fs.existsSync(ytDlpPath)) {
             try {
                 // Test if it's executable
-                await this.execCommand(`${ytDlpPath} --version`);
+                await this.execCommand(`"${ytDlpPath}" --version`);
                 console.log(`✅ yt-dlp found locally: ${ytDlpPath}`);
                 return true;
             } catch (error) {
-                console.log('⚠️  yt-dlp exists but not executable, will re-download');
+                console.log('⚠️  yt-dlp exists but not executable, will try to fix or re-download');
+                // Try to make it executable
+                try {
+                    await this.execCommand(`chmod +x "${ytDlpPath}"`);
+                    await this.execCommand(`"${ytDlpPath}" --version`);
+                    console.log('✅ yt-dlp fixed and working');
+                    return true;
+                } catch (fixError) {
+                    console.log('❌ Could not fix yt-dlp, will re-download');
+                }
             }
         }
 
@@ -69,8 +102,19 @@ class DependencyManager {
             console.log('❌ yt-dlp not found globally');
         }
 
-        // Download yt-dlp
-        console.log('📥 Downloading yt-dlp...');
+        // Try to install via pip first
+        console.log('🐍 Trying to install yt-dlp via pip...');
+        try {
+            await this.execCommand('pip3 install yt-dlp');
+            await this.execCommand('yt-dlp --version');
+            console.log('✅ yt-dlp installed via pip');
+            return true;
+        } catch (error) {
+            console.log('❌ pip installation failed, trying binary download...');
+        }
+
+        // Download yt-dlp binary
+        console.log('📥 Downloading yt-dlp binary...');
         return await this.downloadYtDlp(config);
     }
 
@@ -90,10 +134,12 @@ class DependencyManager {
         return new Promise((resolve, reject) => {
             const filePath = path.join(this.binDir, config.filename);
             const file = createWriteStream(filePath);
+            const url = typeof config.getUrl === 'function' ? config.getUrl() : config.url;
 
-            console.log(`📥 Downloading from: ${config.url}`);
+            console.log(`📥 Downloading from: ${url}`);
+            console.log(`🏗️  Architecture: ${process.arch} (${process.platform})`);
 
-            https.get(config.url, (response) => {
+            https.get(url, (response) => {
                 if (response.statusCode === 302 || response.statusCode === 301) {
                     // Follow redirect
                     https.get(response.headers.location, (redirectResponse) => {
@@ -120,8 +166,28 @@ class DependencyManager {
                     console.log('✅ yt-dlp is working correctly');
                     resolve(true);
                 } catch (error) {
-                    console.error('❌ Failed to make yt-dlp executable or test it:', error.message);
-                    reject(error);
+                    console.error('❌ Downloaded yt-dlp is not compatible with this system:', error.message);
+                    console.log('🧹 Cleaning up incompatible binary...');
+
+                    // Remove the incompatible binary
+                    try {
+                        fs.unlinkSync(filePath);
+                        console.log('🗑️  Removed incompatible binary');
+                    } catch (unlinkError) {
+                        console.log('⚠️  Could not remove incompatible binary');
+                    }
+
+                    // Try pip installation as fallback
+                    console.log('🐍 Trying pip installation as fallback...');
+                    try {
+                        await this.execCommand('pip3 install yt-dlp');
+                        await this.execCommand('yt-dlp --version');
+                        console.log('✅ yt-dlp installed via pip successfully');
+                        resolve(true);
+                    } catch (pipError) {
+                        console.error('❌ All installation methods failed');
+                        reject(new Error('Could not install yt-dlp. Please install manually: pip3 install yt-dlp'));
+                    }
                 }
             });
 
@@ -168,8 +234,12 @@ class DependencyManager {
     }
 
     generateEnvFile() {
+        // Check if yt-dlp is available globally
+        const ytDlpPath = path.join(this.binDir, 'yt-dlp');
+        const ytDlpExists = fs.existsSync(ytDlpPath);
+
         const envContent = `# Dependencies configuration
-YT_DLP_PATH=${path.join(this.binDir, 'yt-dlp')}
+YT_DLP_PATH=${ytDlpExists ? ytDlpPath : 'yt-dlp'}
 FFMPEG_PATH=ffmpeg
 `;
 
