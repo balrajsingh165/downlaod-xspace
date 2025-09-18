@@ -3,6 +3,39 @@ import { spawn } from 'child_process'
 import path from 'path'
 import fs from 'fs'
 
+// Function to clean up old files, keeping only the last 5
+function cleanupOldFiles(downloadsDir: string) {
+    try {
+        const files = fs.readdirSync(downloadsDir)
+            .filter(file => file.endsWith('.mp3'))
+            .map(file => {
+                const filePath = path.join(downloadsDir, file)
+                const stats = fs.statSync(filePath)
+                return {
+                    name: file,
+                    path: filePath,
+                    created_at: stats.birthtime
+                }
+            })
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+        // Keep only the first 5 (newest) files, delete the rest
+        if (files.length > 5) {
+            const filesToDelete = files.slice(5)
+            filesToDelete.forEach(file => {
+                try {
+                    fs.unlinkSync(file.path)
+                    console.log(`Deleted old file: ${file.name}`)
+                } catch (error) {
+                    console.error(`Failed to delete file ${file.name}:`, error)
+                }
+            })
+        }
+    } catch (error) {
+        console.error('Error cleaning up old files:', error)
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
         const { url } = await request.json()
@@ -77,6 +110,9 @@ export async function POST(request: NextRequest) {
 
                             result.download_url = `/downloads/${fileName}`
                             delete result.file_path
+
+                            // Clean up old files (keep only last 5)
+                            cleanupOldFiles(publicDir)
                         }
                     }
 
@@ -131,6 +167,8 @@ export async function GET() {
                     created_at: stats.birthtime
                 }
             })
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) // Sort by newest first
+            .slice(0, 5) // Keep only last 5
 
         return NextResponse.json({ files })
     } catch (error) {

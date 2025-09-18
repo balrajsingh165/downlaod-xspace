@@ -169,13 +169,13 @@ export default function Home() {
                     <div className="status success">
                         <strong>Download Complete!</strong>
                         <br />
-                        <strong>Title:</strong> <span style={{ color: 'var(--gray-800)' }}>{downloadResult.title}</span>
+                        <strong>Title:</strong> <span style={{ color: '#1f2937', fontWeight: '600' }}>{downloadResult.title}</span>
                         <br />
-                        <strong>Host:</strong> <span style={{ color: 'var(--gray-800)' }}>{downloadResult.uploader}</span>
+                        <strong>Host:</strong> <span style={{ color: '#1f2937', fontWeight: '600' }}>{downloadResult.uploader}</span>
                         <br />
-                        <strong>Duration:</strong> <span style={{ color: 'var(--gray-800)' }}>{formatDuration(downloadResult.duration || 0)}</span>
+                        <strong>Duration:</strong> <span style={{ color: '#1f2937', fontWeight: '600' }}>{formatDuration(downloadResult.duration || 0)}</span>
                         <br />
-                        <strong>File Size:</strong> <span style={{ color: 'var(--gray-800)' }}>{formatFileSize(downloadResult.file_size || 0)}</span>
+                        <strong>File Size:</strong> <span style={{ color: '#1f2937', fontWeight: '600' }}>{formatFileSize(downloadResult.file_size || 0)}</span>
                         <br />
                         <a
                             href={downloadResult.download_url}
@@ -196,14 +196,14 @@ export default function Home() {
             </div>
 
 
-            {/* Previous Downloads */}
+            {/* Previous Downloads - Last 5 only */}
             {downloadFiles.length > 0 && (
                 <div className="card fade-in">
                     <h2 className="section-title">
-                        Previous Downloads
+                        Recent Downloads
                     </h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {downloadFiles.map((file, index) => (
+                        {downloadFiles.slice(0, 5).map((file, index) => (
                             <div key={index} className="download-item">
                                 <div className="file-info">
                                     <div className="file-name">{file.name}</div>
@@ -230,24 +230,6 @@ export default function Home() {
             )}
 
 
-            {/* How to Use */}
-            <div className="card fade-in">
-                <h2 className="section-title">
-                    How to Use
-                </h2>
-                <ol style={{ paddingLeft: '1.5rem', lineHeight: '1.6' }}>
-                    <li>Find a Twitter Space you want to download</li>
-                    <li>Copy the URL from your browser (should look like <code>https://twitter.com/i/spaces/...</code> or <code>https://x.com/i/spaces/...</code>)</li>
-                    <li>Paste the URL in the input field above</li>
-                    <li>Click "Download Space" and wait for the download to complete</li>
-                    <li>Download your MP3 file when ready</li>
-                </ol>
-
-                <div style={{ marginTop: '1rem', padding: '1rem', background: '#f3f4f6', borderRadius: '6px' }}>
-                    <strong>Note:</strong> This tool requires <code>yt-dlp</code> and <code>ffmpeg</code> to be installed on the server.
-                    Make sure these dependencies are available in your environment.
-                </div>
-            </div>
         </div>
     )
 }
