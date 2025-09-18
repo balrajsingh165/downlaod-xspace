@@ -103,8 +103,8 @@ def download_space(url, output_dir="downloads"):
     ]
 
     try:
-        # Use the same approach as main.py - no capture_output for better compatibility
-        result = subprocess.run(cmd, timeout=3600)  # 1 hour timeout
+        # Use capture_output=True for API usage to get proper error messages
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
 
         if result.returncode == 0:
             # Find the downloaded file
@@ -125,7 +125,13 @@ def download_space(url, output_dir="downloads"):
             else:
                 return {"error": "Download completed but no MP3 file found"}
         else:
-            return {"error": f"Download failed with return code: {result.returncode}"}
+            # Return detailed error information
+            error_msg = (
+                result.stderr
+                if result.stderr
+                else f"Download failed with return code: {result.returncode}"
+            )
+            return {"error": f"Download failed: {error_msg}"}
 
     except subprocess.TimeoutExpired:
         return {"error": "Download timeout (max 1 hour)"}

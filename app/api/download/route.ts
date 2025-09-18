@@ -52,6 +52,10 @@ export async function POST(request: NextRequest) {
             })
 
             python.on('close', (code) => {
+                console.log('Python process closed with code:', code)
+                console.log('STDOUT:', stdout)
+                console.log('STDERR:', stderr)
+
                 try {
                     const result = JSON.parse(stdout)
 
@@ -78,9 +82,15 @@ export async function POST(request: NextRequest) {
 
                     resolve(NextResponse.json(result))
                 } catch (error) {
+                    console.error('JSON Parse Error:', error)
+                    console.error('Raw stdout:', stdout)
+                    console.error('Raw stderr:', stderr)
+
                     resolve(NextResponse.json({
                         error: 'Failed to parse download result',
-                        details: stderr || stdout
+                        details: stderr || stdout,
+                        raw_stdout: stdout,
+                        raw_stderr: stderr
                     }, { status: 500 }))
                 }
             })
