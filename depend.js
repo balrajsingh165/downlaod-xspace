@@ -75,20 +75,32 @@ class DependencyManager {
         // Check if yt-dlp exists locally
         if (fs.existsSync(ytDlpPath)) {
             try {
-                // Test if it's executable
+                // Test if it's executable and compatible
                 await this.execCommand(`"${ytDlpPath}" --version`);
                 console.log(`✅ yt-dlp found locally: ${ytDlpPath}`);
                 return true;
             } catch (error) {
-                console.log('⚠️  yt-dlp exists but not executable, will try to fix or re-download');
-                // Try to make it executable
-                try {
-                    await this.execCommand(`chmod +x "${ytDlpPath}"`);
-                    await this.execCommand(`"${ytDlpPath}" --version`);
-                    console.log('✅ yt-dlp fixed and working');
-                    return true;
-                } catch (fixError) {
-                    console.log('❌ Could not fix yt-dlp, will re-download');
+                console.log('⚠️  yt-dlp exists but not working:', error.message);
+
+                // Check if it's an exec format error (architecture mismatch)
+                if (error.message.includes('Exec format error') || error.message.includes('Errno 8')) {
+                    console.log('❌ Architecture mismatch detected, removing incompatible binary...');
+                    try {
+                        fs.unlinkSync(ytDlpPath);
+                        console.log('🗑️  Removed incompatible binary');
+                    } catch (unlinkError) {
+                        console.log('⚠️  Could not remove incompatible binary');
+                    }
+                } else {
+                    // Try to make it executable
+                    try {
+                        await this.execCommand(`chmod +x "${ytDlpPath}"`);
+                        await this.execCommand(`"${ytDlpPath}" --version`);
+                        console.log('✅ yt-dlp fixed and working');
+                        return true;
+                    } catch (fixError) {
+                        console.log('❌ Could not fix yt-dlp, will re-download');
+                    }
                 }
             }
         }

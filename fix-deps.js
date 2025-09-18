@@ -20,6 +20,20 @@ if (fs.existsSync(binDir)) {
             console.log(`⚠️  Could not remove: ${file}`);
         }
     });
+} else {
+    console.log('📁 No bin directory found, creating...');
+    fs.mkdirSync(binDir, { recursive: true });
+}
+
+// Also clean up .env.local to force regeneration
+const envPath = path.join(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+    try {
+        fs.unlinkSync(envPath);
+        console.log('🗑️  Removed old .env.local');
+    } catch (error) {
+        console.log('⚠️  Could not remove .env.local');
+    }
 }
 
 // Try to install yt-dlp via pip first
