@@ -41,7 +41,9 @@ def is_valid_twitter_spaces_url(url):
 def get_space_info(url):
     """Get Twitter Space information"""
     try:
-        cmd = ["yt-dlp", "--dump-single-json", "--no-warnings", url]
+        # Use environment variable for yt-dlp path, fallback to 'yt-dlp'
+        yt_dlp_path = os.environ.get("YT_DLP_PATH", "yt-dlp")
+        cmd = [yt_dlp_path, "--dump-single-json", "--no-warnings", url]
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
@@ -85,13 +87,18 @@ def download_space(url, output_dir="downloads"):
     filename = f"{safe_uploader} - {safe_title}.%(ext)s"
 
     # Download command
+    yt_dlp_path = os.environ.get("YT_DLP_PATH", "yt-dlp")
+    ffmpeg_path = os.environ.get("FFMPEG_PATH", "ffmpeg")
+
     cmd = [
-        "yt-dlp",
+        yt_dlp_path,
         "--extract-audio",
         "--audio-format",
         "mp3",
         "--audio-quality",
         "0",  # Best quality
+        "--ffmpeg-location",
+        ffmpeg_path,
         "--output",
         os.path.join(output_dir, filename),
         "--no-warnings",

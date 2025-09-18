@@ -4,10 +4,12 @@
   "description": "Twitter Space Downloader with Next.js UI",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 8855",
-    "build": "next build",
+    "dev": "node depend.js && next dev -p 8855",
+    "build": "node depend.js && next build",
     "start": "next start -p 8855",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check-deps": "node depend.js",
+    "install-deps": "node depend.js"
   },
   "dependencies": {
     "next": "^14.0.0",

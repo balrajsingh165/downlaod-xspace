@@ -26,10 +26,18 @@ export async function POST(request: NextRequest) {
         // Run the Python downloader script
         const pythonScript = path.join(process.cwd(), 'scripts', 'downloader.py')
 
+        // Set environment variables for dependencies
+        const env = {
+            ...process.env,
+            YT_DLP_PATH: process.env.YT_DLP_PATH || path.join(process.cwd(), 'bin', 'yt-dlp'),
+            FFMPEG_PATH: process.env.FFMPEG_PATH || 'ffmpeg'
+        }
+
         return new Promise((resolve) => {
             const python = spawn('python', [pythonScript, url], {
                 cwd: process.cwd(),
-                stdio: ['pipe', 'pipe', 'pipe']
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: env
             })
 
             let stdout = ''
