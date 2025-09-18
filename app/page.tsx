@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import ThemeToggle from './components/ThemeToggle'
 
 interface DownloadFile {
     name: string
@@ -27,6 +28,7 @@ export default function Home() {
     const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null)
     const [downloadFiles, setDownloadFiles] = useState<DownloadFile[]>([])
     const [error, setError] = useState('')
+    const [progress, setProgress] = useState(0)
 
     // Load existing downloads on component mount
     useEffect(() => {
@@ -53,12 +55,22 @@ export default function Home() {
         setIsDownloading(true)
         setError('')
         setDownloadResult(null)
+        setProgress(0)
+
+        // Simulate progress for better UX
+        const progressInterval = setInterval(() => {
+            setProgress(prev => {
+                if (prev >= 90) return prev
+                return prev + Math.random() * 10
+            })
+        }, 1000)
 
         try {
             const response = await axios.post('/api/download', { url })
             const result = response.data
 
             if (result.success) {
+                setProgress(100)
                 setDownloadResult(result)
                 // Reload downloads list
                 await loadDownloads()
@@ -68,7 +80,9 @@ export default function Home() {
         } catch (error: any) {
             setError(error.response?.data?.error || 'Download failed')
         } finally {
+            clearInterval(progressInterval)
             setIsDownloading(false)
+            setProgress(0)
         }
     }
 
@@ -84,70 +98,113 @@ export default function Home() {
         return new Date(dateString).toLocaleString()
     }
 
+    const formatDuration = (seconds: number) => {
+        const hours = Math.floor(seconds / 3600)
+        const minutes = Math.floor((seconds % 3600) / 60)
+        const secs = seconds % 60
+
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        }
+        return `${minutes}:${secs.toString().padStart(2, '0')}`
+    }
+
     return (
         <div className="container">
-            <div className="card">
-                <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem', color: '#1f2937' }}>
-                    Twitter Space Downloader
+            <ThemeToggle />
+
+            {/* Hero Section */}
+            <div className="hero-section slide-in-up">
+                <h1 className="hero-title">
+                    🎙️ Twitter Space Downloader
                 </h1>
-                <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
-                    Download Twitter Spaces as MP3 files. Enter a Twitter Spaces URL below to get started.
+                <p className="hero-subtitle">
+                    Download any Twitter Space as high-quality MP3 files instantly.
+                    Preserve conversations, interviews, and discussions forever.
                 </p>
+            </div>
 
-                <form onSubmit={handleDownload}>
-                    <div className="input-group">
-                        <label htmlFor="url">Twitter Spaces URL</label>
-                        <input
-                            type="url"
-                            id="url"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            placeholder="https://twitter.com/i/spaces/1BdGYZmdzlQJX or https://x.com/i/spaces/1BdGYZmdzlQJX"
-                            disabled={isDownloading}
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="btn"
+            {/* Main Download Card */}
+            <div className="card fade-in">
+                <div className="input-group">
+                    <label htmlFor="url">
+                        <span>🔗 Twitter Spaces URL</span>
+                    </label>
+                    <input
+                        type="url"
+                        id="url"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="https://twitter.com/i/spaces/1BdGYZmdzlQJX or https://x.com/i/spaces/1BdGYZmdzlQJX"
                         disabled={isDownloading}
-                        style={{ width: '100%' }}
-                    >
-                        {isDownloading ? (
-                            <>
-                                <span className="spinner" style={{ marginRight: '0.5rem' }}></span>
-                                Downloading...
-                            </>
-                        ) : (
-                            'Download Space'
-                        )}
-                    </button>
-                </form>
+                    />
+                </div>
+
+                <button
+                    type="submit"
+                    className="btn"
+                    disabled={isDownloading || !url.trim()}
+                    onClick={handleDownload}
+                    style={{ width: '100%' }}
+                >
+                    {isDownloading ? (
+                        <>
+                            <span className="spinner"></span>
+                            Downloading... {Math.round(progress)}%
+                        </>
+                    ) : (
+                        <>
+                            <span>⬇️</span>
+                            Download Space
+                        </>
+                    )}
+                </button>
+
+                {isDownloading && (
+                    <div className="progress-bar">
+                        <div className="progress" style={{ width: `${progress}%` }}></div>
+                    </div>
+                )}
 
                 {error && (
                     <div className="status error">
-                        <strong>Error:</strong> {error}
+                        <strong>❌ Error:</strong> {error}
                     </div>
                 )}
 
                 {downloadResult && downloadResult.success && (
                     <div className="status success">
-                        <strong>Download Complete!</strong>
-                        <br />
-                        <strong>Title:</strong> {downloadResult.title}
-                        <br />
-                        <strong>Host:</strong> {downloadResult.uploader}
-                        <br />
-                        <strong>Duration:</strong> {downloadResult.duration} seconds
-                        <br />
-                        <strong>File Size:</strong> {formatFileSize(downloadResult.file_size || 0)}
-                        <br />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                            <span style={{ fontSize: '1.5rem' }}>✅</span>
+                            <strong style={{ fontSize: '1.1rem' }}>Download Complete!</strong>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div>
+                                <strong>📝 Title:</strong><br />
+                                <span style={{ color: 'var(--gray-600)' }}>{downloadResult.title}</span>
+                            </div>
+                            <div>
+                                <strong>👤 Host:</strong><br />
+                                <span style={{ color: 'var(--gray-600)' }}>{downloadResult.uploader}</span>
+                            </div>
+                            <div>
+                                <strong>⏱️ Duration:</strong><br />
+                                <span style={{ color: 'var(--gray-600)' }}>{formatDuration(downloadResult.duration || 0)}</span>
+                            </div>
+                            <div>
+                                <strong>💾 File Size:</strong><br />
+                                <span style={{ color: 'var(--gray-600)' }}>{formatFileSize(downloadResult.file_size || 0)}</span>
+                            </div>
+                        </div>
+
                         <a
                             href={downloadResult.download_url}
                             download
-                            className="btn btn-secondary"
-                            style={{ marginTop: '0.5rem', display: 'inline-block' }}
+                            className="btn btn-success"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
                         >
+                            <span>💾</span>
                             Download MP3
                         </a>
                     </div>
@@ -155,54 +212,203 @@ export default function Home() {
 
                 {isDownloading && (
                     <div className="status info">
-                        <strong>Downloading...</strong> This may take a few minutes depending on the length of the space.
+                        <strong>⏳ Processing...</strong> This may take a few minutes depending on the length of the space.
+                        Please don't close this page.
                     </div>
                 )}
             </div>
 
+            {/* Stats Section */}
             {downloadFiles.length > 0 && (
-                <div className="card">
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#1f2937' }}>
-                        Previous Downloads
-                    </h2>
-                    {downloadFiles.map((file, index) => (
-                        <div key={index} className="download-item">
-                            <div className="file-info">
-                                <div className="file-name">{file.name}</div>
-                                <div className="file-size">
-                                    {formatFileSize(file.size)} • {formatDate(file.created_at)}
-                                </div>
-                            </div>
-                            <div className="actions">
-                                <a
-                                    href={file.download_url}
-                                    download
-                                    className="btn btn-secondary"
-                                    style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-                                >
-                                    Download
-                                </a>
-                            </div>
+                <div className="stats-grid">
+                    <div className="stat-card">
+                        <div className="stat-number">{downloadFiles.length}</div>
+                        <div className="stat-label">Total Downloads</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-number">
+                            {formatFileSize(downloadFiles.reduce((acc, file) => acc + file.size, 0))}
                         </div>
-                    ))}
+                        <div className="stat-label">Total Size</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-number">
+                            {downloadFiles.length > 0 ? Math.round(downloadFiles.reduce((acc, file) => acc + file.size, 0) / downloadFiles.length / 1024 / 1024) : 0}MB
+                        </div>
+                        <div className="stat-label">Average Size</div>
+                    </div>
                 </div>
             )}
 
-            <div className="card">
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#1f2937' }}>
-                    How to Use
-                </h2>
-                <ol style={{ paddingLeft: '1.5rem', lineHeight: '1.6' }}>
-                    <li>Find a Twitter Space you want to download</li>
-                    <li>Copy the URL from your browser (should look like <code>https://twitter.com/i/spaces/...</code> or <code>https://x.com/i/spaces/...</code>)</li>
-                    <li>Paste the URL in the input field above</li>
-                    <li>Click "Download Space" and wait for the download to complete</li>
-                    <li>Download your MP3 file when ready</li>
-                </ol>
+            {/* Previous Downloads */}
+            {downloadFiles.length > 0 && (
+                <div className="card fade-in">
+                    <h2 className="section-title">
+                        📁 Previous Downloads
+                    </h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {downloadFiles.map((file, index) => (
+                            <div key={index} className="download-item">
+                                <div className="file-info">
+                                    <div className="file-name">🎵 {file.name}</div>
+                                    <div className="file-size">
+                                        <span>💾 {formatFileSize(file.size)}</span>
+                                        <span>•</span>
+                                        <span>📅 {formatDate(file.created_at)}</span>
+                                    </div>
+                                </div>
+                                <div className="actions">
+                                    <a
+                                        href={file.download_url}
+                                        download
+                                        className="btn btn-secondary"
+                                        style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem' }}
+                                    >
+                                        <span>⬇️</span>
+                                        Download
+                                    </a>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
-                <div style={{ marginTop: '1rem', padding: '1rem', background: '#f3f4f6', borderRadius: '6px' }}>
-                    <strong>Note:</strong> This tool requires <code>yt-dlp</code> and <code>ffmpeg</code> to be installed on the server.
-                    Make sure these dependencies are available in your environment.
+            {/* Features Section */}
+            <div className="feature-grid">
+                <div className="feature-card slide-in-up" style={{ animationDelay: '0.1s' }}>
+                    <div className="feature-icon">🎯</div>
+                    <h3 style={{ marginBottom: '1rem', color: 'var(--gray-800)' }}>Easy to Use</h3>
+                    <p style={{ color: 'var(--gray-600)', lineHeight: '1.6' }}>
+                        Simply paste a Twitter Spaces URL and click download. No registration or complex setup required.
+                    </p>
+                </div>
+
+                <div className="feature-card slide-in-up" style={{ animationDelay: '0.2s' }}>
+                    <div className="feature-icon">⚡</div>
+                    <h3 style={{ marginBottom: '1rem', color: 'var(--gray-800)' }}>Fast Processing</h3>
+                    <p style={{ color: 'var(--gray-600)', lineHeight: '1.6' }}>
+                        Optimized download process that converts spaces to MP3 format quickly and efficiently.
+                    </p>
+                </div>
+
+                <div className="feature-card slide-in-up" style={{ animationDelay: '0.3s' }}>
+                    <div className="feature-icon">🔒</div>
+                    <h3 style={{ marginBottom: '1rem', color: 'var(--gray-800)' }}>Privacy First</h3>
+                    <p style={{ color: 'var(--gray-600)', lineHeight: '1.6' }}>
+                        Your downloads are processed securely and files are stored temporarily for your convenience.
+                    </p>
+                </div>
+            </div>
+
+            {/* How to Use */}
+            <div className="card fade-in">
+                <h2 className="section-title">
+                    📖 How to Use
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                        <div style={{
+                            background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
+                            color: 'white',
+                            width: '2rem',
+                            height: '2rem',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            flexShrink: 0
+                        }}>
+                            1
+                        </div>
+                        <div>
+                            <h4 style={{ marginBottom: '0.5rem', color: 'var(--gray-800)' }}>Find a Space</h4>
+                            <p style={{ color: 'var(--gray-600)', margin: 0 }}>Navigate to any Twitter Space you want to download</p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                        <div style={{
+                            background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
+                            color: 'white',
+                            width: '2rem',
+                            height: '2rem',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            flexShrink: 0
+                        }}>
+                            2
+                        </div>
+                        <div>
+                            <h4 style={{ marginBottom: '0.5rem', color: 'var(--gray-800)' }}>Copy URL</h4>
+                            <p style={{ color: 'var(--gray-600)', margin: 0 }}>Copy the URL from your browser address bar</p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                        <div style={{
+                            background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
+                            color: 'white',
+                            width: '2rem',
+                            height: '2rem',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            flexShrink: 0
+                        }}>
+                            3
+                        </div>
+                        <div>
+                            <h4 style={{ marginBottom: '0.5rem', color: 'var(--gray-800)' }}>Paste & Download</h4>
+                            <p style={{ color: 'var(--gray-600)', margin: 0 }}>Paste the URL above and click download</p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                        <div style={{
+                            background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
+                            color: 'white',
+                            width: '2rem',
+                            height: '2rem',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            flexShrink: 0
+                        }}>
+                            4
+                        </div>
+                        <div>
+                            <h4 style={{ marginBottom: '0.5rem', color: 'var(--gray-800)' }}>Get Your File</h4>
+                            <p style={{ color: 'var(--gray-600)', margin: 0 }}>Download your MP3 file when ready</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{
+                    marginTop: '2rem',
+                    padding: '1.5rem',
+                    background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                    borderRadius: 'var(--radius)',
+                    border: '1px solid #bae6fd'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                        <span style={{ fontSize: '1.25rem' }}>ℹ️</span>
+                        <div>
+                            <strong style={{ color: 'var(--gray-800)', display: 'block', marginBottom: '0.5rem' }}>System Requirements</strong>
+                            <p style={{ color: 'var(--gray-600)', margin: 0, fontSize: '0.9rem' }}>
+                                This tool requires <code style={{ background: 'rgba(0,0,0,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.25rem' }}>yt-dlp</code> and <code style={{ background: 'rgba(0,0,0,0.1)', padding: '0.2rem 0.4rem', borderRadius: '0.25rem' }}>ffmpeg</code> to be installed on the server.
+                                Make sure these dependencies are available in your environment.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
